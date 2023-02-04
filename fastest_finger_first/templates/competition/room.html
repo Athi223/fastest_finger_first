@@ -1,0 +1,56 @@
+{% extends 'competition/base.html' %}
+
+{% block title %}Game{% endblock %}
+
+{% block content %}
+<div style="width: 50%; padding: 5rem; position: absolute; top: 50%; left: 0; transform: translate(50%, -50%); border: 1px solid dodgerblue;">
+    {{ request.user }}
+	<div id="questions-container">
+		<h3 id="question"></h3>
+        <div class="grid">
+            <button onclick="choice('skip')" id="skip" class="secondary">Skip</button>
+            <button onclick="choice('pick')" id="pick">Pick</button>
+        </div>
+	</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const gameSocket = new WebSocket(`ws://${window.location.host}/ws/game/`);
+    let index
+
+    gameSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        if(data.type === "question") {
+            index = data.question.number
+            document.querySelector('#question').innerHTML = data.question.question;
+            document.querySelector("#skip").disabled = false
+            document.querySelector("#pick").disabled = false
+        }
+        else {
+            document.querySelector("#skip").disabled = true
+            document.querySelector("#pick").disabled = true
+            if(data.result !== "skipped") {
+                console.log(`${data.result} by ${data.user}`)
+            }
+        }
+    };
+
+    gameSocket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly');
+    }; 
+
+    function choice(choice) {
+        gameSocket.send(JSON.stringify({
+            user: "{{ request.user }}",
+            choice: choice,
+            question: index
+        }));
+    }
+
+    function pick() {
+
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends 'competition/base.html' %}
+
+{% block title %}Staff{% endblock %}
+{% block head %}
+{% endblock %}
+
+{% block content %}
+<div style="width: 50%; padding: 5rem; position: absolute; top: 50%; left: 0; transform: translate(50%, -50%); border: 1px solid dodgerblue;">
+	<div id="questions-container">
+		<h2>Status: <span id="status"></span></h2>
+		<h3 id="question"></h3>
+		<div class="grid">
+			<p id="option0"></p>
+			<p id="option1"></p>
+		</div>
+		<div class="grid">
+			<p id="option2"></p>
+			<p id="option3"></p>
+		</div>
+		<button id="send">Send Question</button>
+	</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+	let index = 0, skipped = 0
+	show_question()
+
+	function show_question() {
+		document.querySelector("#status").innerHTML = "Waiting..."
+		document.querySelector("#status").style.color = "gray"
+		fetch(`/get_question/?number=${index+1}`)
+		.then(response => response.json())
+		.then(data => {
+			skipped = 0
+			document.querySelector("#question").innerHTML = data.question;
+			[0, 1, 2, 3].map(v => document.querySelector(`#option${v}`).innerHTML = `<b>${v}:</b>&emsp;${eval("data.option"+v)}`)
+		})
+	}
+
+	const roomName = "game";
+
+	const gameSocket = new WebSocket(`ws://${window.location.host}/ws/game/`);
+
+	gameSocket.onmessage = function(e) {
+		const data = JSON.parse(e.data);
+		if(data.type === "result") {
+			if(data.result === "picked") {
+				document.querySelector("#status").innerHTML = `Picked by ${data.user}`;
+				document.querySelector("#status").style.color = "green";
+				document.querySelector("#send").disabled = false
+			}
+			else {
+				document.querySelector("#status").innerHTML = `${++skipped} users Skipped`;
+				document.querySelector("#status").style.color = "red";
+			}
+		}
+		if(skipped == 1) {
+			document.querySelector("#send").disabled = false
+		}
+	};
+
+	gameSocket.onclose = function(e) {
+		console.error('Chat socket closed unexpectedly');
+	};
+
+	document.querySelector("#send").onclick = e => {
+		e.target.disabled = true
+		gameSocket.send(index);
+		if(index < 5) {
+			++index;
+			show_question()
+		}
+		else {
+			document.querySelector("#questions-container").style.display = none;
+		}
+	}
+</script>
+{% endblock %}
